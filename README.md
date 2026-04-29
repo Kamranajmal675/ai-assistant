@@ -1,24 +1,12 @@
-# Gemini Daily-Life + OS Automation Assistant
+# Gemini Real-Life + OS Automation Assistant
 
-Ab assistant sirf OS commands nahi, balkay **daily life automation** bhi karta hai.
+Ab assistant me daily-life + OS automation ke saath extra real-life modules add ho gaye hain:
 
-## Daily Life Automation
-
-- Todo management
-  - `add_todo`, `list_todos`, `complete_todo`
-- Expense tracking
-  - `add_expense`, `list_expenses`
-- Reminder management
-  - `add_reminder`, `list_reminders`
-
-Data local workspace me `.assistant_data/` folder ke andar JSON files me save hota hai.
-
-## OS Automation
-
-- `list_files`, `read_file`, `write_file`, `append_file`
-- `make_dir`, `delete_path`, `move_path`, `copy_path`
-- `run_shell` (optional confirmation)
-- `pwd`
+- OCR automation (image se text)
+- WhatsApp automation (chat open, message draft, call open)
+- Screenshot automation
+- Weather automation
+- Todo / Expense / Reminder automation
 
 ## Setup
 
@@ -26,6 +14,13 @@ Data local workspace me `.assistant_data/` folder ke andar JSON files me save ho
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+Optional extras (feature-wise):
+
+```bash
+pip install pillow pytesseract pyautogui gTTS
+# OCR ke liye system pe tesseract binary bhi install honi chahiye
 ```
 
 ## Env vars
@@ -38,23 +33,27 @@ export AUTOMATION_WORKSPACE="$PWD"
 export AUTO_APPROVE="false"
 ```
 
-## Run
+## New Real-Life Actions
 
-```bash
-python assistant.py
-```
+- `ocr_image(image_path)`
+- `take_screenshot(output_path="screenshots/latest.png")`
+- `get_weather(city)`
+- `whatsapp_open_chat(phone, message="")`
+- `whatsapp_send(phone, message)`
+- `whatsapp_call(phone)`
+- `text_to_voice(text, output_path="audio/tts.mp3")`
+
+## Important WhatsApp Note
+
+WhatsApp Web automation me security restrictions ki wajah se:
+- message draft/open possible hai,
+- lekin auto-call, auto-send press, chat-read scrape, voice-note read as text directly official API se reliably possible nahi hota.
+- Is liye assistant browser flow open karta hai aur manual final step expect karta hai.
 
 ## Example prompts
 
-- "Aaj ka todo add karo: bijli ka bill pay karna"
-- "Mere todos dikhao"
-- "Todo #1 complete kar do"
-- "500 grocery expense add karo"
-- "Is month ke expenses dikhao"
-- "Kal subah 8 baje doctor appointment ka reminder laga do"
-- "Desktop style me files list karo"
-
-## Safety
-
-- Workspace boundary enforced hai.
-- Shell commands ke liye confirmation enabled rehta hai (jab tak `AUTO_APPROVE=true` na ho).
+- "is image ka OCR karo: receipts/bill1.png"
+- "weather Lahore batao"
+- "screenshot lo"
+- "+923001234567 ko whatsapp message bhejo: meeting 6 baje hai"
+- "is text ko voice me convert karo"

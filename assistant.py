@@ -2,22 +2,27 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
+import webbrowser
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote
 
+import requests
 from google import genai
 from google.genai import types
 
 
 SYSTEM_PROMPT = (
-    "You are a daily-life OS automation planner. "
+    "You are a real-life automation planner. "
     "Return ONLY valid JSON with schema: "
     "{\"action\": string, \"args\": object, \"explanation\": string}. "
-    "Allowed actions: chat, list_files, read_file, write_file, append_file, make_dir, "
-    "delete_path, move_path, copy_path, run_shell, pwd, add_todo, list_todos, complete_todo, "
-    "add_expense, list_expenses, add_reminder, list_reminders."
+    "Allowed actions: chat, list_files, read_file, write_file, append_file, make_dir, delete_path, move_path, "
+    "copy_path, run_shell, pwd, add_todo, list_todos, complete_todo, add_expense, list_expenses, add_reminder, "
+    "list_reminders, ocr_image, take_screenshot, get_weather, whatsapp_send, whatsapp_call, whatsapp_open_chat, "
+    "text_to_voice."
 )
 
 
@@ -116,33 +121,17 @@ class OSActions:
         return f"Copied: {source} -> {target}"
 
     def run_shell(self, command: str) -> str:
-        completed = subprocess.run(
-            command,
-            cwd=str(self.workspace),
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=180,
-        )
-        out = (completed.stdout or "").strip()
-        err = (completed.stderr or "").strip()
+        completed = subprocess.run(command, cwd=str(self.workspace), shell=True, capture_output=True, text=True, timeout=180)
         parts = [f"Exit code: {completed.returncode}"]
-        if out:
-            parts.append(f"STDOUT:\n{out}")
-        if err:
-            parts.append(f"STDERR:\n{err}")
+        if completed.stdout.strip():
+            parts.append(f"STDOUT:\n{completed.stdout.strip()}")
+        if completed.stderr.strip():
+            parts.append(f"STDERR:\n{completed.stderr.strip()}")
         return "\n\n".join(parts)
 
-    # Daily life automation actions
     def add_todo(self, title: str, due: str = "") -> str:
         todos = self._load_json("todos")
-        item = {
-            "id": len(todos) + 1,
-            "title": title,
-            "due": due,
-            "done": False,
-            "created_at": datetime.utcnow().isoformat(),
-        }
+        item = {"id": len(todos) + 1, "title": title, "due": due, "done": False, "created_at": datetime.utcnow().isoformat()}
         todos.append(item)
         self._save_json("todos", todos)
         return f"Todo added: #{item['id']} {title}"
@@ -151,12 +140,7 @@ class OSActions:
         todos = self._load_json("todos")
         if not todos:
             return "No todos found."
-        lines = []
-        for t in todos:
-            status = "✅" if t.get("done") else "⬜"
-            due = f" | due: {t['due']}" if t.get("due") else ""
-            lines.append(f"{status} #{t['id']} {t['title']}{due}")
-        return "\n".join(lines)
+        return "\n".join([f"{'✅' if t.get('done') else '⬜'} #{t['id']} {t['title']}{' | due: ' + t['due'] if t.get('due') else ''}" for t in todos])
 
     def complete_todo(self, todo_id: int) -> str:
         todos = self._load_json("todos")
@@ -169,14 +153,7 @@ class OSActions:
 
     def add_expense(self, amount: float, category: str, note: str = "") -> str:
         expenses = self._load_json("expenses")
-        item = {
-            "id": len(expenses) + 1,
-            "amount": amount,
-            "category": category,
-            "note": note,
-            "date": datetime.utcnow().date().isoformat(),
-        }
-        expenses.append(item)
+        expenses.append({"id": len(expenses) + 1, "amount": amount, "category": category, "note": note, "date": datetime.utcnow().date().isoformat()})
         self._save_json("expenses", expenses)
         return f"Expense added: {amount} ({category})"
 
@@ -187,29 +164,72 @@ class OSActions:
         if not expenses:
             return "No expenses found."
         total = sum(float(e["amount"]) for e in expenses)
-        lines = [f"Total: {total}"]
-        lines.extend(
-            [f"#{e['id']} {e['date']} {e['category']} {e['amount']} - {e.get('note', '')}" for e in expenses]
-        )
-        return "\n".join(lines)
+        rows = [f"Total: {total}"] + [f"#{e['id']} {e['date']} {e['category']} {e['amount']} - {e.get('note', '')}" for e in expenses]
+        return "\n".join(rows)
 
     def add_reminder(self, title: str, remind_at: str) -> str:
         reminders = self._load_json("reminders")
-        item = {
-            "id": len(reminders) + 1,
-            "title": title,
-            "remind_at": remind_at,
-            "created_at": datetime.utcnow().isoformat(),
-        }
-        reminders.append(item)
+        reminders.append({"id": len(reminders) + 1, "title": title, "remind_at": remind_at, "created_at": datetime.utcnow().isoformat()})
         self._save_json("reminders", reminders)
-        return f"Reminder added: #{item['id']} {title} @ {remind_at}"
+        return f"Reminder added: #{len(reminders)} {title} @ {remind_at}"
 
     def list_reminders(self) -> str:
         reminders = self._load_json("reminders")
         if not reminders:
             return "No reminders found."
         return "\n".join([f"#{r['id']} {r['title']} @ {r['remind_at']}" for r in reminders])
+
+    def ocr_image(self, image_path: str) -> str:
+        try:
+            import pytesseract
+            from PIL import Image
+        except ImportError:
+            return "OCR dependency missing. Install: pip install pytesseract pillow"
+        img = self._safe_path(image_path)
+        text = pytesseract.image_to_string(Image.open(img))
+        return text.strip() or "No text detected."
+
+    def take_screenshot(self, output_path: str = "screenshots/latest.png") -> str:
+        try:
+            import pyautogui
+        except ImportError:
+            return "Screenshot dependency missing. Install: pip install pyautogui"
+        out = self._safe_path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        shot = pyautogui.screenshot()
+        shot.save(out)
+        return f"Screenshot saved: {out}"
+
+    def get_weather(self, city: str) -> str:
+        url = f"https://wttr.in/{quote(city)}?format=j1"
+        resp = requests.get(url, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        cur = data["current_condition"][0]
+        return f"{city}: {cur['temp_C']}°C, feels {cur['FeelsLikeC']}°C, humidity {cur['humidity']}%, wind {cur['windspeedKmph']} km/h"
+
+    def whatsapp_open_chat(self, phone: str, message: str = "") -> str:
+        encoded = quote(message)
+        webbrowser.open(f"https://web.whatsapp.com/send?phone={phone}&text={encoded}")
+        return "WhatsApp Web chat opened in browser."
+
+    def whatsapp_send(self, phone: str, message: str) -> str:
+        webbrowser.open(f"https://web.whatsapp.com/send?phone={phone}&text={quote(message)}")
+        return "WhatsApp message drafted in browser. Press Enter in WhatsApp Web to send."
+
+    def whatsapp_call(self, phone: str) -> str:
+        webbrowser.open(f"https://web.whatsapp.com/send?phone={phone}")
+        return "WhatsApp chat opened. Start call manually from call icon (web/API limitation)."
+
+    def text_to_voice(self, text: str, output_path: str = "audio/tts.mp3") -> str:
+        try:
+            from gtts import gTTS
+        except ImportError:
+            return "Voice dependency missing. Install: pip install gTTS"
+        out = self._safe_path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        gTTS(text=text, lang="en").save(out)
+        return f"Voice file generated: {out}"
 
 
 class ConversationAssistant:
@@ -233,11 +253,7 @@ class ConversationAssistant:
 
     def plan(self, user_input: str) -> Dict[str, Any]:
         self.history.append(Message(role="user", content=user_input))
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=self._contents(),
-            config=types.GenerateContentConfig(temperature=0.1),
-        )
+        response = self.client.models.generate_content(model=self.model, contents=self._contents(), config=types.GenerateContentConfig(temperature=0.1))
         raw = response.text or ""
         self.history.append(Message(role="assistant", content=raw))
         try:
@@ -249,18 +265,14 @@ class ConversationAssistant:
         action = plan.get("action", "chat")
         args = plan.get("args") or {}
         explanation = plan.get("explanation", "")
-
         if action == "chat":
             return explanation or "Done."
-
         if action == "run_shell" and not self.auto_approve:
             command = str(args.get("command", "")).strip()
             print(f"Planned shell command: {command}")
             print(f"Reason: {explanation}")
-            confirm = input("Run shell command? (y/N): ").strip().lower()
-            if confirm not in {"y", "yes"}:
+            if input("Run shell command? (y/N): ").strip().lower() not in {"y", "yes"}:
                 return "Shell command cancelled."
-
         try:
             method = getattr(self.actions, action)
             result = method(**args)
@@ -268,7 +280,6 @@ class ConversationAssistant:
             return f"Unknown action: {action}"
         except Exception as exc:
             return f"Automation error: {exc}"
-
         self.history.append(Message(role="user", content=f"Executed {action} args={args} result={result}"))
         return f"{explanation}\n\n{result}".strip()
 
@@ -279,12 +290,10 @@ class ConversationAssistant:
 def main() -> None:
     workspace = os.getenv("AUTOMATION_WORKSPACE", os.getcwd())
     auto_approve = os.getenv("AUTO_APPROVE", "false").lower() in {"1", "true", "yes"}
-
-    print("Gemini Daily-Life OS Automation Assistant started.")
+    print("Gemini Real-Life Automation Assistant started.")
     print(f"Workspace: {Path(workspace).resolve()}")
     print(f"Auto-approve shell: {auto_approve}")
     print("Type 'exit' to quit.\n")
-
     assistant = ConversationAssistant(workspace=workspace, auto_approve=auto_approve)
     while True:
         user_input = input("You: ").strip()
