@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 import webbrowser
 from dataclasses import dataclass
 from datetime import datetime
@@ -18,7 +19,7 @@ SYSTEM_PROMPT = (
     "Return ONLY valid JSON with schema: "
     "{\"action\": string, \"args\": object, \"explanation\": string}. "
     "Allowed actions include voice and system management features: transcribe_voice, speak_text, "
-    "set_voice_profile, open_application, close_application, list_processes, create_file, create_folder."
+    "set_voice_profile, open_application, close_application, list_processes, create_file, create_folder, system_status_check."
 )
 
 VOICE_PROFILES = {
@@ -157,6 +158,41 @@ class OSActions:
             return f"Application closed: {app}"
         return f"No running process matched: {app}"
 
+    def system_status_check(self, realtime_seconds: int = 0, interval_seconds: int = 2) -> str:
+        try:
+            import psutil
+        except ImportError:
+            return "System status dependency missing. Install: pip install psutil"
+
+        def snapshot() -> str:
+            battery = psutil.sensors_battery()
+            battery_text = (
+                f"{battery.percent}% ({'charging' if battery.power_plugged else 'on battery'})"
+                if battery
+                else "not available"
+            )
+            cpu = psutil.cpu_percent(interval=0.4)
+            ram = psutil.virtual_memory()
+            try:
+                requests.get("https://www.google.com/generate_204", timeout=4)
+                internet = "connected"
+            except Exception:
+                internet = "disconnected"
+            return (
+                f"Battery: {battery_text} | CPU: {cpu}% | RAM: {ram.percent}% "
+                f"({round(ram.used / (1024**3), 2)}GB/{round(ram.total / (1024**3), 2)}GB) | Internet: {internet}"
+            )
+
+        if realtime_seconds <= 0:
+            return snapshot()
+
+        end_time = time.time() + realtime_seconds
+        lines = []
+        while time.time() < end_time:
+            lines.append(snapshot())
+            time.sleep(max(1, interval_seconds))
+        return "\n".join(lines)
+
 class ConversationAssistant:
     def __init__(self, model: str = "gemini-2.0-flash", workspace: Optional[str] = None, auto_approve: bool = False, voice_profile: str = "female_1") -> None:
         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -221,6 +257,14 @@ class ConversationAssistant:
             return self.actions.create_folder(text[len("create folder "):].strip())
         if t in {"list processes", "show processes"}:
             return self.actions.list_processes()
+        if t in {"system status", "status check", "check system status"}:
+            return self.actions.system_status_check()
+        if t.startswith("system status realtime "):
+            try:
+                secs = int(t.replace("system status realtime ", "").strip())
+            except ValueError:
+                secs = 10
+            return self.actions.system_status_check(realtime_seconds=secs, interval_seconds=2)
         return None
 
 

@@ -52,5 +52,15 @@ Ab assistant application aur file/folder management bhi karta hai:
 - **List processes**: `list processes`
 - **Create file**: `create file notes/today.txt`
 - **Create folder**: `create folder projects/demo`
+- **System status**: `system status`
+- **Realtime status**: `system status realtime 20`
 
 Yeh commands voice input mode (`voice`) me bhi kaam karti hain.
+
+### System Status Check (New)
+
+Monitor in real-time via voice/text:
+- Battery level
+- CPU usage
+- RAM usage
+- Internet connectivity
