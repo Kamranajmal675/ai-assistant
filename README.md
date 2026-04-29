@@ -1,12 +1,15 @@
 # Gemini Real-Life + OS Automation Assistant
 
-Ab assistant me daily-life + OS automation ke saath extra real-life modules add ho gaye hain:
+## 🎙 Voice Input + 8 Voice Options
 
-- OCR automation (image se text)
-- WhatsApp automation (chat open, message draft, call open)
-- Screenshot automation
-- Weather automation
-- Todo / Expense / Reminder automation
+Assistant me voice interaction add kar di gayi hai:
+
+- **Voice Input**: microphone se bol kar command de sakte ho (`voice` command).
+- **8 voice profiles** for output speech:
+  - Female: `female_1`, `female_2`, `female_3`, `female_4`
+  - Male: `male_1`, `male_2`, `male_3`, `male_4`
+
+> Note: actual installed system voices par depend karta hai ke kis profile par kaunsi tone map ho.
 
 ## Setup
 
@@ -14,46 +17,28 @@ Ab assistant me daily-life + OS automation ke saath extra real-life modules add 
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-Optional extras (feature-wise):
-
-```bash
-pip install pillow pytesseract pyautogui gTTS
-# OCR ke liye system pe tesseract binary bhi install honi chahiye
+pip install SpeechRecognition pyaudio pyttsx3
 ```
 
 ## Env vars
 
 ```bash
 export GEMINI_API_KEY="your_api_key_here"
-# or GOOGLE_API_KEY
-
 export AUTOMATION_WORKSPACE="$PWD"
 export AUTO_APPROVE="false"
+
+# pick one of 8 profiles
+export VOICE_PROFILE="female_1"
+
+# optional: assistant response bhi awaaz me suno
+export SPEAK_RESPONSES="true"
 ```
 
-## New Real-Life Actions
+## Usage
 
-- `ocr_image(image_path)`
-- `take_screenshot(output_path="screenshots/latest.png")`
-- `get_weather(city)`
-- `whatsapp_open_chat(phone, message="")`
-- `whatsapp_send(phone, message)`
-- `whatsapp_call(phone)`
-- `text_to_voice(text, output_path="audio/tts.mp3")`
+```bash
+python assistant.py
+```
 
-## Important WhatsApp Note
-
-WhatsApp Web automation me security restrictions ki wajah se:
-- message draft/open possible hai,
-- lekin auto-call, auto-send press, chat-read scrape, voice-note read as text directly official API se reliably possible nahi hota.
-- Is liye assistant browser flow open karta hai aur manual final step expect karta hai.
-
-## Example prompts
-
-- "is image ka OCR karo: receipts/bill1.png"
-- "weather Lahore batao"
-- "screenshot lo"
-- "+923001234567 ko whatsapp message bhejo: meeting 6 baje hai"
-- "is text ko voice me convert karo"
+- `voice` type karo -> assistant mic se input lega.
+- normal text bhi kaam karega.
