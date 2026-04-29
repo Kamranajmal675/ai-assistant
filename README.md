@@ -1,22 +1,24 @@
-# Gemini OS Automation Assistant (Python)
+# Gemini Daily-Life + OS Automation Assistant
 
-Is version me assistant ko **Operating System automation** ke liye design kiya gaya hai.
-Assistant Gemini se action-plan banata hai aur OS actions execute karta hai.
+Ab assistant sirf OS commands nahi, balkay **daily life automation** bhi karta hai.
 
-## Features (Full OS Automation Base)
+## Daily Life Automation
 
-- Workspace-scoped file system automation
-  - `list_files`
-  - `read_file`
-  - `write_file`
-  - `append_file`
-  - `make_dir`
-  - `delete_path`
-  - `move_path`
-  - `copy_path`
-- Shell command execution (`run_shell`)
-- Safety prompt for shell commands (`AUTO_APPROVE=false`)
-- Conversation memory with action/result feedback loop
+- Todo management
+  - `add_todo`, `list_todos`, `complete_todo`
+- Expense tracking
+  - `add_expense`, `list_expenses`
+- Reminder management
+  - `add_reminder`, `list_reminders`
+
+Data local workspace me `.assistant_data/` folder ke andar JSON files me save hota hai.
+
+## OS Automation
+
+- `list_files`, `read_file`, `write_file`, `append_file`
+- `make_dir`, `delete_path`, `move_path`, `copy_path`
+- `run_shell` (optional confirmation)
+- `pwd`
 
 ## Setup
 
@@ -26,17 +28,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Environment Variables
+## Env vars
 
 ```bash
 export GEMINI_API_KEY="your_api_key_here"
-# or
-export GOOGLE_API_KEY="your_api_key_here"
+# or GOOGLE_API_KEY
 
-# assistant sirf isi workspace ke andar paths operate karega
 export AUTOMATION_WORKSPACE="$PWD"
-
-# shell commands ke liye auto-confirmation
 export AUTO_APPROVE="false"
 ```
 
@@ -46,15 +44,17 @@ export AUTO_APPROVE="false"
 python assistant.py
 ```
 
-## Example Prompts
+## Example prompts
 
-- "current folder ki files list karo"
-- "notes/today.txt file banao aur isme hello likho"
-- "notes/today.txt read karo"
-- "logs folder create karo"
-- "disk usage check karo"
+- "Aaj ka todo add karo: bijli ka bill pay karna"
+- "Mere todos dikhao"
+- "Todo #1 complete kar do"
+- "500 grocery expense add karo"
+- "Is month ke expenses dikhao"
+- "Kal subah 8 baje doctor appointment ka reminder laga do"
+- "Desktop style me files list karo"
 
 ## Safety
 
-- Path operations workspace boundary ke bahar allow nahi hain.
-- Shell commands powerful hoti hain; production me allowlist/audit logging add karein.
+- Workspace boundary enforced hai.
+- Shell commands ke liye confirmation enabled rehta hai (jab tak `AUTO_APPROVE=true` na ho).
