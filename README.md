@@ -54,6 +54,7 @@ Ab assistant application aur file/folder management bhi karta hai:
 - **Create folder**: `create folder projects/demo`
 - **System status**: `system status`
 - **Realtime status**: `system status realtime 20`
+- **Feature readout**: `read features`
 
 Yeh commands voice input mode (`voice`) me bhi kaam karti hain.
 

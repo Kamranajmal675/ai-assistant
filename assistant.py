@@ -33,6 +33,17 @@ VOICE_PROFILES = {
     "male_4": {"gender": "male", "index_hint": 3},
 }
 
+DEFAULT_FEATURE_READOUT = [
+    "Voice Input / Voice Output",
+    "8 Voice Profiles (4 Male + 4 Female)",
+    "Open / Close Applications",
+    "Process Monitoring",
+    "File / Folder Creation",
+    "Weather Check",
+    "WhatsApp Message Draft",
+    "System Status Check (Battery/CPU/RAM/Internet)",
+]
+
 @dataclass
 class Message:
     role: str
@@ -83,6 +94,9 @@ class OSActions:
 
     def list_voice_profiles(self) -> str:
         return "\n".join(VOICE_PROFILES.keys())
+
+    def readout_features(self) -> str:
+        return "Available features:\n- " + "\n- ".join(DEFAULT_FEATURE_READOUT)
 
     def transcribe_voice(self, timeout: int = 8) -> str:
         try:
@@ -259,6 +273,8 @@ class ConversationAssistant:
             return self.actions.list_processes()
         if t in {"system status", "status check", "check system status"}:
             return self.actions.system_status_check()
+        if t in {"read features", "feature list", "readout features"}:
+            return self.actions.readout_features()
         if t.startswith("system status realtime "):
             try:
                 secs = int(t.replace("system status realtime ", "").strip())
