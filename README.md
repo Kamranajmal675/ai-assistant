@@ -1,9 +1,24 @@
-# Python AI OS Automation Assistant (Gemini)
+# Gemini OS Automation Assistant (Python)
 
-Ye project ab simple chat se aage barh kar **OS automation assistant** ban gaya hai.
-Assistant Gemini se plan banata hai aur zarurat par shell command run karta hai.
+Is version me assistant ko **Operating System automation** ke liye design kiya gaya hai.
+Assistant Gemini se action-plan banata hai aur OS actions execute karta hai.
 
-## 1) Setup
+## Features (Full OS Automation Base)
+
+- Workspace-scoped file system automation
+  - `list_files`
+  - `read_file`
+  - `write_file`
+  - `append_file`
+  - `make_dir`
+  - `delete_path`
+  - `move_path`
+  - `copy_path`
+- Shell command execution (`run_shell`)
+- Safety prompt for shell commands (`AUTO_APPROVE=false`)
+- Conversation memory with action/result feedback loop
+
+## Setup
 
 ```bash
 python -m venv .venv
@@ -11,45 +26,35 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 2) API Key set karein
+## Environment Variables
 
 ```bash
 export GEMINI_API_KEY="your_api_key_here"
-# alternative:
-# export GOOGLE_API_KEY="your_api_key_here"
-```
+# or
+export GOOGLE_API_KEY="your_api_key_here"
 
-## 3) Optional automation env vars
-
-```bash
-# jis folder me commands chalani hain
+# assistant sirf isi workspace ke andar paths operate karega
 export AUTOMATION_WORKSPACE="$PWD"
 
-# true karne par command confirmation skip ho jayegi
+# shell commands ke liye auto-confirmation
 export AUTO_APPROVE="false"
 ```
 
-## 4) Run
+## Run
 
 ```bash
 python assistant.py
 ```
 
-## 5) Kaise kaam karta hai
-
-- Normal sawaal par normal answer deta hai.
-- Automation request par assistant command propose karta hai.
-- `AUTO_APPROVE=false` par pehle confirmation mangta hai.
-- Approved hone par command execute karta hai aur output wapas deta hai.
-
-## 6) Example prompts
+## Example Prompts
 
 - "current folder ki files list karo"
-- "logs naam ka folder banao aur usme today.txt file create karo"
-- "python version check karo"
-- "system disk usage batao"
+- "notes/today.txt file banao aur isme hello likho"
+- "notes/today.txt read karo"
+- "logs folder create karo"
+- "disk usage check karo"
 
-## Safety Note
+## Safety
 
-Shell automation powerful hoti hai. Unknown commands ko blindly run na karein.
-Production workflows ke liye allowlist, sandboxing, aur audit logs add karna recommended hai.
+- Path operations workspace boundary ke bahar allow nahi hain.
+- Shell commands powerful hoti hain; production me allowlist/audit logging add karein.
