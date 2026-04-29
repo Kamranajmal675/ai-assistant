@@ -17,7 +17,8 @@ SYSTEM_PROMPT = (
     "You are a real-life automation planner. "
     "Return ONLY valid JSON with schema: "
     "{\"action\": string, \"args\": object, \"explanation\": string}. "
-    "Allowed actions include voice features: transcribe_voice, speak_text, set_voice_profile."
+    "Allowed actions include voice and system management features: transcribe_voice, speak_text, "
+    "set_voice_profile, open_application, close_application, list_processes, create_file, create_folder."
 )
 
 VOICE_PROFILES = {
@@ -68,6 +69,17 @@ class OSActions:
         self.voice_profile = profile
         return f"Voice profile set to: {profile}"
 
+    def create_file(self, path: str, content: str = "") -> str:
+        target = self._safe_path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+        return f"File created: {target}"
+
+    def create_folder(self, path: str) -> str:
+        target = self._safe_path(path)
+        target.mkdir(parents=True, exist_ok=True)
+        return f"Folder created: {target}"
+
     def list_voice_profiles(self) -> str:
         return "\n".join(VOICE_PROFILES.keys())
 
@@ -111,6 +123,39 @@ class OSActions:
     def whatsapp_send(self, phone: str, message: str) -> str:
         webbrowser.open(f"https://web.whatsapp.com/send?phone={phone}&text={quote(message)}")
         return "WhatsApp message drafted in browser."
+
+    def list_processes(self, limit: int = 20) -> str:
+        completed = subprocess.run(
+            "ps -eo pid,comm,%cpu,%mem --sort=-%cpu | head -n 25",
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if completed.returncode != 0:
+            return completed.stderr.strip() or "Failed to read processes."
+        rows = completed.stdout.strip().splitlines()
+        return "\n".join(rows[: max(2, min(limit + 1, len(rows)))])
+
+    def open_application(self, app: str) -> str:
+        app = app.strip()
+        if not app:
+            return "Application name is required."
+        candidates = [f"nohup {app} >/dev/null 2>&1 &", f"nohup xdg-open {app} >/dev/null 2>&1 &"]
+        for cmd in candidates:
+            completed = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if completed.returncode == 0:
+                return f"Application launched: {app}"
+        return f"Could not open application: {app}"
+
+    def close_application(self, app: str) -> str:
+        app = app.strip()
+        if not app:
+            return "Application name is required."
+        completed = subprocess.run(f"pkill -f '{app}'", shell=True, capture_output=True, text=True)
+        if completed.returncode == 0:
+            return f"Application closed: {app}"
+        return f"No running process matched: {app}"
 
 class ConversationAssistant:
     def __init__(self, model: str = "gemini-2.0-flash", workspace: Optional[str] = None, auto_approve: bool = False, voice_profile: str = "female_1") -> None:
@@ -159,7 +204,24 @@ class ConversationAssistant:
         return f"{explanation}\n\n{result}".strip()
 
     def handle(self, user_input: str) -> str:
+        fast = self._handle_voice_shortcuts(user_input)
+        if fast is not None:
+            return fast
         return self.execute(self.plan(user_input))
+
+    def _handle_voice_shortcuts(self, text: str) -> Optional[str]:
+        t = text.strip().lower()
+        if t.startswith("open "):
+            return self.actions.open_application(text[5:].strip())
+        if t.startswith("close "):
+            return self.actions.close_application(text[6:].strip())
+        if t.startswith("create file "):
+            return self.actions.create_file(text[len("create file "):].strip())
+        if t.startswith("create folder "):
+            return self.actions.create_folder(text[len("create folder "):].strip())
+        if t in {"list processes", "show processes"}:
+            return self.actions.list_processes()
+        return None
 
 
 def main() -> None:

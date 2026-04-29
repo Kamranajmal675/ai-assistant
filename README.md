@@ -42,3 +42,15 @@ python assistant.py
 
 - `voice` type karo -> assistant mic se input lega.
 - normal text bhi kaam karega.
+
+## Full System Automation (Voice + Text)
+
+Ab assistant application aur file/folder management bhi karta hai:
+
+- **Open app**: `open chrome` / `open calculator`
+- **Close app**: `close chrome`
+- **List processes**: `list processes`
+- **Create file**: `create file notes/today.txt`
+- **Create folder**: `create folder projects/demo`
+
+Yeh commands voice input mode (`voice`) me bhi kaam karti hain.
